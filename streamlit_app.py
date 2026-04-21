@@ -10,8 +10,15 @@ CSV_FILE = "Offer Writing Assistance Data - Step Log (2).csv"
 def load_data():
     df = pd.read_csv(CSV_FILE).fillna("")
     df["Step_ID"] = df["Step_ID"].astype(int)
-    df["Next_If_Yes"] = df["Next_If_Yes"].apply(lambda x: int(x) if str(x).strip() not in ["", "nan"] else None)
-    df["Next_If_No"] = df["Next_If_No"].apply(lambda x: int(x) if str(x).strip() not in ["", "nan"] else None)
+
+    def parse_step(val):
+        val = str(val).strip()
+        if val == "" or val.lower() == "nan":
+            return None
+        return int(float(val))
+
+    df["Next_If_Yes"] = df["Next_If_Yes"].apply(parse_step)
+    df["Next_If_No"] = df["Next_If_No"].apply(parse_step)
     return df
 
 df = load_data()
@@ -29,6 +36,33 @@ def append_output(output_list, text):
     if text:
         output_list.append(text)
 
+def collect_conditional_steps(start_steps, rows_by_id):
+    queue = list(start_steps)
+    visited = set()
+    conditional_steps = []
+
+    while queue:
+        step_id = queue.pop(0)
+
+        if step_id is None or step_id in visited or step_id not in rows_by_id:
+            continue
+
+        visited.add(step_id)
+        row = rows_by_id[step_id]
+
+        if str(row["Question_Group"]).strip().lower() != "core":
+            conditional_steps.append(step_id)
+
+        next_yes = row["Next_If_Yes"]
+        next_no = row["Next_If_No"]
+
+        if next_yes is not None and next_yes not in visited:
+            queue.append(next_yes)
+        if next_no is not None and next_no not in visited:
+            queue.append(next_no)
+
+    return conditional_steps
+
 st.subheader("Core Questions")
 
 core_answers = {}
@@ -42,73 +76,70 @@ for _, row in core_df.iterrows():
         key=f"core_{step_id}"
     )
 
-if st.button("Generate Offer Guidance", type="primary"):
-    output_log = []
-    queue = []
-    visited = set()
+if st.button("Load Conditional Questions", type="primary"):
+    start_steps = []
 
     for _, row in core_df.iterrows():
         step_id = int(row["Step_ID"])
         answer = core_answers[step_id]
 
         if answer == "Yes":
-            append_output(output_log, row["Output_If_Yes"])
             if row["Next_If_Yes"] is not None:
-                queue.append(row["Next_If_Yes"])
+                start_steps.append(row["Next_If_Yes"])
         else:
-            append_output(output_log, row["Output_If_No"])
             if row["Next_If_No"] is not None:
-                queue.append(row["Next_If_No"])
+                start_steps.append(row["Next_If_No"])
 
-    st.session_state["queue"] = queue
-    st.session_state["visited"] = visited
-    st.session_state["output_log"] = output_log
-    st.session_state["rows_by_id"] = rows_by_id
-    st.session_state["started"] = True
+    conditional_steps = collect_conditional_steps(start_steps, rows_by_id)
+    st.session_state["conditional_steps"] = conditional_steps
+    st.session_state["loaded_conditionals"] = True
 
-if st.session_state.get("started"):
-    queue = st.session_state.get("queue", [])
-    visited = st.session_state.get("visited", set())
-    output_log = st.session_state.get("output_log", [])
-    rows_by_id = st.session_state.get("rows_by_id", {})
+if st.session_state.get("loaded_conditionals"):
+    conditional_steps = st.session_state.get("conditional_steps", [])
 
-    st.subheader("Conditional Questions")
+    if conditional_steps:
+        st.subheader("Conditional Questions")
 
-    idx = 0
-    while idx < len(queue):
-        step_id = queue[idx]
+        conditional_answers = {}
+        for step_id in conditional_steps:
+            row = rows_by_id[step_id]
+            question = clean_question(row["Question"])
+            conditional_answers[step_id] = st.radio(
+                question,
+                ["No", "Yes"],
+                horizontal=True,
+                key=f"cond_{step_id}"
+            )
 
-        if step_id in visited or step_id not in rows_by_id:
-            idx += 1
-            continue
+        if st.button("Generate Final Output"):
+            output_log = []
 
-        row = rows_by_id[step_id]
-        visited.add(step_id)
+            # Core outputs
+            for _, row in core_df.iterrows():
+                step_id = int(row["Step_ID"])
+                answer = core_answers[step_id]
 
-        question = clean_question(row["Question"])
-        answer = st.radio(
-            question,
-            ["No", "Yes"],
-            horizontal=True,
-            key=f"cond_{step_id}"
-        )
+                if answer == "Yes":
+                    append_output(output_log, row["Output_If_Yes"])
+                else:
+                    append_output(output_log, row["Output_If_No"])
 
-        if answer == "Yes":
-            append_output(output_log, row["Output_If_Yes"])
-            next_step = row["Next_If_Yes"]
-        else:
-            append_output(output_log, row["Output_If_No"])
-            next_step = row["Next_If_No"]
+            # Conditional outputs
+            for step_id in conditional_steps:
+                row = rows_by_id[step_id]
+                answer = conditional_answers[step_id]
 
-        if next_step is not None and next_step not in visited and next_step not in queue:
-            queue.append(next_step)
+                if answer == "Yes":
+                    append_output(output_log, row["Output_If_Yes"])
+                else:
+                    append_output(output_log, row["Output_If_No"])
 
-        idx += 1
+            st.session_state["final_output"] = output_log
 
+if "final_output" in st.session_state:
     st.subheader("Output")
-
-    if output_log:
-        for item in output_log:
+    if st.session_state["final_output"]:
+        for item in st.session_state["final_output"]:
             st.markdown(item)
     else:
         st.write("No output generated.")
