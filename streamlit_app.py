@@ -23,7 +23,7 @@ def load_data():
 
 df = load_data()
 rows_by_id = {int(row["Step_ID"]): row for _, row in df.iterrows()}
-core_df = df[df["Question_Group"].str.strip().str.lower() == "core"].sort_values("Step_ID")
+core_df = df[df["Question_Group"].astype(str).str.strip().str.lower() == "core"].sort_values("Step_ID")
 
 def clean_question(text):
     text = str(text).strip()
@@ -36,110 +36,150 @@ def append_output(output_list, text):
     if text:
         output_list.append(text)
 
-def collect_conditional_steps(start_steps, rows_by_id):
-    queue = list(start_steps)
-    visited = set()
-    conditional_steps = []
+def add_next_step(queue, visited, next_step):
+    if next_step is not None and next_step in rows_by_id and next_step not in visited and next_step not in queue:
+        queue.append(next_step)
 
-    while queue:
-        step_id = queue.pop(0)
+# initialize session state
+if "phase" not in st.session_state:
+    st.session_state.phase = "core"
 
-        if step_id is None or step_id in visited or step_id not in rows_by_id:
-            continue
+if "core_answers" not in st.session_state:
+    st.session_state.core_answers = {}
 
-        visited.add(step_id)
-        row = rows_by_id[step_id]
+if "conditional_answers" not in st.session_state:
+    st.session_state.conditional_answers = {}
 
-        if str(row["Question_Group"]).strip().lower() != "core":
-            conditional_steps.append(step_id)
+if "queue" not in st.session_state:
+    st.session_state.queue = []
 
-        next_yes = row["Next_If_Yes"]
-        next_no = row["Next_If_No"]
+if "visited" not in st.session_state:
+    st.session_state.visited = set()
 
-        if next_yes is not None and next_yes not in visited:
-            queue.append(next_yes)
-        if next_no is not None and next_no not in visited:
-            queue.append(next_no)
+if "output_log" not in st.session_state:
+    st.session_state.output_log = []
 
-    return conditional_steps
-
+# CORE PHASE
 st.subheader("Core Questions")
 
-core_answers = {}
 for _, row in core_df.iterrows():
     step_id = int(row["Step_ID"])
     question = clean_question(row["Question"])
-    core_answers[step_id] = st.radio(
+
+    saved_value = st.session_state.core_answers.get(step_id, "No")
+    answer = st.radio(
         question,
         ["No", "Yes"],
+        index=0 if saved_value == "No" else 1,
         horizontal=True,
         key=f"core_{step_id}"
     )
+    st.session_state.core_answers[step_id] = answer
 
-if st.button("Load Conditional Questions", type="primary"):
-    start_steps = []
+if st.session_state.phase == "core":
+    if st.button("Start Conditional Questions", type="primary"):
+        queue = []
+        visited = set()
 
-    for _, row in core_df.iterrows():
-        step_id = int(row["Step_ID"])
-        answer = core_answers[step_id]
+        for _, row in core_df.iterrows():
+            step_id = int(row["Step_ID"])
+            answer = st.session_state.core_answers[step_id]
 
-        if answer == "Yes":
-            if row["Next_If_Yes"] is not None:
-                start_steps.append(row["Next_If_Yes"])
-        else:
-            if row["Next_If_No"] is not None:
-                start_steps.append(row["Next_If_No"])
+            if answer == "Yes":
+                add_next_step(queue, visited, row["Next_If_Yes"])
+            else:
+                add_next_step(queue, visited, row["Next_If_No"])
 
-    conditional_steps = collect_conditional_steps(start_steps, rows_by_id)
-    st.session_state["conditional_steps"] = conditional_steps
-    st.session_state["loaded_conditionals"] = True
+        st.session_state.queue = queue
+        st.session_state.visited = visited
+        st.session_state.phase = "conditional"
 
-if st.session_state.get("loaded_conditionals"):
-    conditional_steps = st.session_state.get("conditional_steps", [])
+# CONDITIONAL PHASE
+if st.session_state.phase == "conditional":
+    if st.session_state.queue:
+        current_step = st.session_state.queue[0]
+        row = rows_by_id[current_step]
 
-    if conditional_steps:
-        st.subheader("Conditional Questions")
+        # if a core row somehow appears again, use stored answer and skip asking
+        if str(row["Question_Group"]).strip().lower() == "core":
+            st.session_state.visited.add(current_step)
+            st.session_state.queue.pop(0)
 
-        conditional_answers = {}
-        for step_id in conditional_steps:
-            row = rows_by_id[step_id]
-            question = clean_question(row["Question"])
-            conditional_answers[step_id] = st.radio(
-                question,
-                ["No", "Yes"],
-                horizontal=True,
-                key=f"cond_{step_id}"
-            )
+            stored_answer = st.session_state.core_answers.get(current_step, "No")
+            next_step = row["Next_If_Yes"] if stored_answer == "Yes" else row["Next_If_No"]
+            add_next_step(st.session_state.queue, st.session_state.visited, next_step)
+            st.rerun()
 
-        if st.button("Generate Final Output"):
+        st.subheader("Conditional Question")
+        st.write(clean_question(row["Question"]))
+
+        saved_value = st.session_state.conditional_answers.get(current_step, "No")
+        cond_answer = st.radio(
+            "Select answer",
+            ["No", "Yes"],
+            index=0 if saved_value == "No" else 1,
+            horizontal=True,
+            key=f"cond_{current_step}"
+        )
+
+        if st.button("Next Conditional Question", type="primary"):
+            st.session_state.conditional_answers[current_step] = cond_answer
+            st.session_state.visited.add(current_step)
+            st.session_state.queue.pop(0)
+
+            next_step = row["Next_If_Yes"] if cond_answer == "Yes" else row["Next_If_No"]
+            add_next_step(st.session_state.queue, st.session_state.visited, next_step)
+
+            st.rerun()
+
+    else:
+        st.subheader("All conditional questions are complete")
+
+        if st.button("Generate Final Output", type="primary"):
             output_log = []
 
-            # Core outputs
+            # core outputs
             for _, row in core_df.iterrows():
                 step_id = int(row["Step_ID"])
-                answer = core_answers[step_id]
+                answer = st.session_state.core_answers.get(step_id, "No")
 
                 if answer == "Yes":
                     append_output(output_log, row["Output_If_Yes"])
                 else:
                     append_output(output_log, row["Output_If_No"])
 
-            # Conditional outputs
-            for step_id in conditional_steps:
+            # conditional outputs
+            for step_id, answer in st.session_state.conditional_answers.items():
                 row = rows_by_id[step_id]
-                answer = conditional_answers[step_id]
 
                 if answer == "Yes":
                     append_output(output_log, row["Output_If_Yes"])
                 else:
                     append_output(output_log, row["Output_If_No"])
 
-            st.session_state["final_output"] = output_log
+            st.session_state.output_log = output_log
+            st.session_state.phase = "done"
+            st.rerun()
 
-if "final_output" in st.session_state:
+# FINAL OUTPUT
+if st.session_state.phase == "done":
     st.subheader("Output")
-    if st.session_state["final_output"]:
-        for item in st.session_state["final_output"]:
+
+    if st.session_state.output_log:
+        for item in st.session_state.output_log:
             st.markdown(item)
     else:
         st.write("No output generated.")
+
+    if st.button("Start Over"):
+        for key in [
+            "phase",
+            "core_answers",
+            "conditional_answers",
+            "queue",
+            "visited",
+            "output_log",
+        ]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
