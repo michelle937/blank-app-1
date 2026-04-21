@@ -1,0 +1,51 @@
+Step_ID,Question_Group,Question,Next_If_Yes,Next_If_No,Output_If_Yes,Output_If_No,Condition_Tag
+100,Core,Does the property have an HOA,101,200,"- Gather HOA Dues and Frequency
+
+- Check the HOA box on the PA and include an HOA Addendum
+
+- Have the clients review Bylaws and Covenants (preferably before offer)
+
+- Check HOA financials to ensure solid and no risk 
+
+- Check HOA meeting minutes for anything regarding upcoming purchases, ongoing maintance issues, anything that could signal a large dip into reserves, special assessment or upcoming increast to dues.",,HOA_YES
+101,Conditional,Is the property a condo/townhome,102,102,- Check with lender to ensure Condo is warranted and can be financed. ,,
+102,Conditional,Do the buyers have pets,103,200,- Check bylaws for any pet restrictions,,
+200,Core,Are your buyers obtaining a mortgage,201,203,"- Ask lender how long they need to close the loan.  Most normal closing times are 30+ days.  (FHA, VA, NFC, Grant Programs may all take longer than ""normal"" closing times) 
+
+- You will want to know the loan program, % of purchase price being financed and rough idea of interest rate quoted or comfortable with in order to properly complete the PA.
+
+- You will most likely want to check the appraisal contingency box on the PA. (verify with buyers.  Exception if they can and are willing to cover the gap with their own funds in situation such as competitive multiple offers. ",,
+201,Conditional,Do you have a preapproval,202,202,,[RISK] CRITICAL: Obtain a preapproval to ensure you have the right information for the financing contingency,
+202,Conditional,Does the buyer have funds for closing costs,300,300,- Ask your buyer if they plan to pay all of the closing costs or want to ask for some seller concessions.  Check the appropriate box to indicate who is paying for the closing costs (and enter an amt if asking buyer to pay some or all of them),"- You will want to ensure you check the seller paid closing cost box on the PA
+
+- Talk to the lender to understand how much closing costs will be/what you need to ask for.  Keep in mind there may be a tax proration credit given to the buyers as well. ",
+203,Conditional,Are your buyers paying cash,204,300,"- Obtain proof of funds 
+
+- Ask the buyer if they want to get an appraisal or not (and check appraisal contingency box if yes)",,
+204,Conditional,"Does the buyer currently have access to the funds such as readily available in their investment, checking or savings account?  (If obtaining funds from a gift, third party such as hard money loan, HELOC, etc check no!)",300,300,- Check box IS NOT contingent on buyer obtaining fund box on the PA,- Check box IS contingent on buyer obtaining fund box on the PA,
+205,Conditional,Is the seller financing this transaction (IE contract for deed)? ,300,206,"[RISK] CRITICAL: If you have never worked a contract with seller financing consult with Kristin before writing.
+
+- Must have a financing addendum attachd to the purchase agreement",,
+206,Conditional,Is the buyer assuming the sellers current loan?,300,300,"[RISK] CRITICAL: If you have never worked with an assumption before consult with Kristin before writing.
+
+- Must have a financing addendum attachd to the purchase agreement
+
+- You will need to know the current loan servicer, balance of current mortgage, rate of current mortgage, Payment of current mortgage, who recieves the escrow funds, etimated assumption completion timeframe (could be 45 days up to a year).  ",,
+300,Core,Was the home built before 1978?,400,400,- [RISK] CRITICAL: Ensure you download and include the signed Lead Based Paint Disclosure with offer,,
+400,Core,Is the property currently occupied by tenants,401,401,"- Ask listing agent if they have current rent roll and lease info.  You want to know current mo rent rates, vacancy rates, expenses, is there a rental certificate in place and when does it expire, are leases in place and when do they end, tenure of residents, etc. 
+",,TENANT_YES
+401,Core,Do the buyers plan to occupy the home?,500,402,- [RISK] CRITICAL: Ensure you understand if there is currently a lease in place and if the tenants will be vacating prior to closing.  Buyer must honor lease in place.  If buyer wants tenants vacated it's very important this is specified on a purchase agreement addendum and included at time of offer.  See Kristin for assistance on verbiage.,,OWNEROCCUPY_YES
+402,Conditional,Do buyers plan to use the property as an investment/rental property?,500,500,,,RENTAL_YES
+500,Core,Does the buyer want any of the appliances in the home,600,600,- Include a Personal Property Addendum to ensure appliances are included in the sale (does not matter whats on the MLS or in the Sellers Disclosure),,PERSONAL_PROPERTY
+600,Core,Do your buyers currently own the home they are in?,601,604,[RISK] CRITICAL: Ensure you have talked to your buyer to determine if they want the offer to be subject to their home selling/closing.  Never assume!,,
+601,Conditional,Do your buyers need the proceeds from their current home to buy their next home?,602,700,,- Ask your buyer if they want their contract to be subject to closing. Ensure they have verified with the lender if it's necessary to have proceeds from current home to close on new contract.,
+602,Conditional,Is their current home under contract? ,603,700,[RISK] CRITICAL: Check the box for subject to closing. ,,
+603,Conditional,Is their current home listed? ,700,700,[RISK] CRITICAL: Check the box for subject to sale and include a Subject to Sale Addendum with the offer.,"- Explain to buyer the risk of not having home on market.  Have identified target list date in place.
+
+[RISK] CRITICAL: Check the box for subject to sale and include a Subject to Sale Addendum with the offer.
+
+",
+604,Conditional,Are your buyers currently renting?,700,700,- Discuss timing of closing vs end of lease,,
+700,Core,Is the home on septic?,701,701,[RISK] CRITICAL: Check the Inspection of Private Sewage Disposal System box on the PA.  Specify inspection timeframe and who is paying for it.  May also want to include a septic addendum.,,SEPTIC_YES
+701,Core,Does the home have a well?,702,702,- Suggest water testing for the well if the well is the main source of water to the home,,WELL_YES
+702,Core,Does the home have a propane tank?,703,703,- Attatch a Fuel Addendum to clarify if tank is owned or rented and how remaining propane will be handled. ,,PROPANE_YES
